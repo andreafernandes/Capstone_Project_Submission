@@ -18,7 +18,7 @@ known as __Lower Super Output Area (LSOA)__ which consists of around 1500 reside
 Here's an image of London showing the ethnic density or ethnic composition of 
 the city:
 
-![__Ethnic Density of London__](/Users/andreafernandes/Desktop/Google Drive/Springboard_Data_Science_Course_2016/DataScience/Capstone_Project/ethnic_density.png)
+![__Ethnic Density of London__](./ethnic_density.png)
 
 ******
 
@@ -88,7 +88,7 @@ The figure below is an example suggesting the reporting levels of
 psychotic symptoms on relevant measures decreases among individuals living in 
 areas of higher own-group ethnic density. 
 
-![__The Ethnic Density effect and Levels of Reporting Psychotic symptoms among White British women, Du Preez et al, 2016__](/Users/andreafernandes/Desktop/Google Drive/Springboard_Data_Science_Course_2016/DataScience/Capstone_Project/ED_effect_WB.png)
+![__The Ethnic Density effect and Levels of Reporting Psychotic symptoms among White British women, Du Preez et al, 2016__](./ED_effect_WB.png)
 
 ******
 
@@ -96,7 +96,7 @@ Another example (Figure below), of the ethnic density effect in play in a majori
 ethnicities presented below. There seems to be a reverse effect in White British
 ethnic group.
 
-![__Differing effects of Ethnic Density in Different Ethnicities, Das Munshi et al, 2012__](/Users/andreafernandes/Desktop/Google Drive/Springboard_Data_Science_Course_2016/DataScience/Capstone_Project/ED_effect.png)
+![__Differing effects of Ethnic Density in Different Ethnicities, Das Munshi et al, 2012__](./ED_effect.png)
 
 
 As can be seen, the ethnic density effect may not manifest consistently among 
