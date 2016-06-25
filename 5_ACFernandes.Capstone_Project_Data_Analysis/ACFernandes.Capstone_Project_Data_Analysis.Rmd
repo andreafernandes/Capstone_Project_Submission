@@ -1,0 +1,1011 @@
+---
+title: "Data Analysis: Ethnic Density and Death By Suicide"
+author: "Andrea Fernandes <andrea.c.fernandes1@gmail.com>"
+date: "22 June 2016"
+output: 
+  html_document:
+    keep_md: true
+    theme: journal
+    highlight: tango
+    toc: true
+    toc_depth: 6
+---
+
+```{r Loading_libraries_and_data, results="hide", echo=FALSE, warning = FALSE, error = FALSE, message=FALSE}
+#Cleaning history/restart, installing packages, setting up wd and loading data. 
+
+rm(list=ls())
+gc()
+
+suppressPackageStartupMessages(library(foreign))
+suppressPackageStartupMessages(library(lubridate))
+suppressPackageStartupMessages(library(tidyr))
+#devtools::install_github("hadley/plyr")
+suppressPackageStartupMessages(library(dplyr))
+suppressPackageStartupMessages(library(ggplot2))
+suppressPackageStartupMessages(library(gmodels))
+suppressPackageStartupMessages(library(GGally))
+suppressPackageStartupMessages(library(gridExtra))
+suppressPackageStartupMessages(library(knitr))
+suppressPackageStartupMessages(library(grid))
+suppressPackageStartupMessages(library(GGally))
+suppressPackageStartupMessages(library(Amelia))
+suppressPackageStartupMessages(library(caret))
+suppressPackageStartupMessages(library(forestplot))
+suppressPackageStartupMessages(library(broom))
+
+# setting working directory
+setwd("/Users/andreafernandes/Capstone_Project_Submission/5_ACFernandes.Capstone_Project_Data_Analysis/")
+```
+
+```{r clear_and_load_data, echo=FALSE, results = "hide", warning = FALSE, error = FALSE, message=FALSE}
+load("Data_ED_new_features.Rdata")
+```
+
+******
+
+### Introduction
+
+*******
+
+In this document, the association of ethnic density scores with death by suicide is explored in each ethnic group, using the original "unbalanced" dataset and logistic regression analyses. The optimal model is selected based on the pseudo r^2 test (McFadden's test) and anova. 
+
+Using a balanced dataset, the predictive power is then demonstrated to see if balancing the data improves the model. 
+
+__Variables to Use__
+
+- Age  
+- Gender  
+- Deprivation  
+- Borough  
+- Marital status  
+- Ethnic Density Score    
+- Suicide   
+- Ethnicity  
+
+ - Asian - 2547  
+ - Black - 3293  
+ - Caribbean - 2755  
+ - Irish - 1567  
+ - Mixed Race - 1301  
+ - Other Black - 3748  
+ - Other White - 4385   
+ - White - 27933   
+
+```{r selecting_white_database, echo=FALSE, results = "hide", message=FALSE, warning=FALSE, error=FALSE}
+# basic logistic model : descriptive epidemiology
+# Reports Odds of Sucidide by "exposure" (and other covariates)
+# no transormation of variable values: all raw scores in their original scales
+# Suicide, factor, Levels: 0 1
+
+# select population and converst chr to factors in prep for analysis
+dataset.white <- 
+  edclean %>% 
+  filter(ethnicity=="White") %>% 
+  dplyr::select(Suicide, Gender_Cleaned, ageatdiagnosis, Marital_Cleaned, 
+         imd_score, LSOA_4boroughs, ethnicdensityscore) %>%
+  mutate(Gender_Cleaned=
+           factor(Gender_Cleaned, 
+                  levels=c("Male",
+                           "Female")),
+         Marital_Cleaned=
+           factor(Marital_Cleaned,
+                  levels=c("Unknown",
+                           "Single",
+                           "Married / Cohabiting",
+                           "Divorced / Separated / Widowed")),
+         LSOA_4boroughs=
+           factor(LSOA_4boroughs,
+                  levels=c("OTHER",
+                           "CROYDON",
+                           "SOUTHWARK",
+                           "LEWSIHAM",
+                           "LAMBETH")))
+```
+
+
+### Logistic regression analyses (using an unbalanced dataset)
+
+******
+
+__Analysing Suicide and Ethnic Density (unadjusted and fully adjusted)__
+```{r logistic_model_base, echo = TRUE, results = "hide", warning = FALSE, error = FALSE, message=FALSE}
+
+#  Unadjusted model (Suicide and ethnic density only)
+logistic_model_base <- tidy(glm(Suicide ~ ethnicdensityscore,
+                      family="binomial",
+                      data=dataset.white))
+
+#  Fully adjusted model
+logistic_model_full <- tidy(glm(Suicide ~ ethnicdensityscore + 
+                                  Gender_Cleaned + ageatdiagnosis + 
+                        Marital_Cleaned + imd_score + LSOA_4boroughs,
+                      family="binomial",
+                      data=dataset.white))
+```
+
+``````{r logistic_model_base_parttwo, echo = FALSE, results = "hide", warning = FALSE, error = FALSE, message=FALSE}
+logistic_model_base$OR <- round(exp(logistic_model_base$estimate), digits = 2)
+
+logistic_model_base$HIGH <- 
+  round(
+    exp(logistic_model_base$estimate + 1.96*logistic_model_base$std.error),
+    digits = 2)
+
+logistic_model_base$LOW <- 
+  round(
+    exp(logistic_model_base$estimate - 1.96*logistic_model_base$std.error),
+    digits = 2)
+
+
+logistic_model_base$p.value <- 
+  round(
+    logistic_model_base$p.value,
+    digits = 3)
+
+## summary of base model
+logistic_model_base[c("OR", "LOW", "HIGH", "p.value")]
+```
+
+
+```{r logistic_model_full_details, echo = FALSE, results = "hide", warning = FALSE, error = FALSE, message= FALSE}
+
+logistic_model_full$OR <- round(exp(logistic_model_full$estimate), digits = 2)
+
+logistic_model_full$HIGH <- 
+  round(
+    exp(logistic_model_full$estimate + 1.96*logistic_model_full$std.error),
+    digits = 2)
+
+logistic_model_full$LOW <- 
+  round(
+    exp(logistic_model_full$estimate - 1.96*logistic_model_full$std.error),
+    digits = 2)
+
+
+logistic_model_full$p.value <- 
+  round(
+    logistic_model_full$p.value,
+    digits = 3)
+
+## summary of base model
+logistic_model_full[c("term","OR", "LOW", "HIGH", "p.value")]
+```
+
+******
+
+#### Results from the logistic regression analyses
+
+******
+
+|                     | Unadjusted Odds Ratio; Confidence intervals; significance |Adjusted Odds Ratio; Confidence intervals; significance|
+|:--                  |:--------                                          | :--------                                     |
+|__Ethnic Density Score__ | 1.01; 1.00 - 1.01;  0.143                         | 1.00; 0.99 - 1.01; 0.447                      |
+
+******
+
+- The logistic regression show no association of ethnic density score and suicide, in unadjusted analysis or the fully adjusted model.
+
+******
+
+__Comparing the two models (base and fully adjusted) using ANOVA and McFadden's test__
+
+```{r anova_comparing_models, echo = FALSE, results = "hide", warning = FALSE, results = FALSE, error = FALSE}
+#__Comparison of the base model and full model
+a <- glm(Suicide ~ ethnicdensityscore,
+                      family="binomial",
+                      data=dataset.white)
+
+b <- glm(Suicide ~ ethnicdensityscore + 
+                                  Gender_Cleaned + ageatdiagnosis + 
+                        Marital_Cleaned + imd_score + LSOA_4boroughs,
+                      family="binomial",
+                      data=dataset.white)
+
+#---------------------------------------------------------
+
+# Result from ANOVA
+# anova(a, b, test ="Chisq")
+
+
+## Model 1: Suicide ~ ethnicdensityscore
+## Model 2: Suicide ~ ethnicdensityscore + Gender_Cleaned + ageatdiagnosis + 
+##     Marital_Cleaned + imd_score + LSOA_4boroughs
+##   Resid. Df Resid. Dev Df Deviance  Pr(>Chi)    
+## 1     27931     2132.4                          
+## 2     27921     2098.4 10    33.94 0.0001891 ***
+
+#---------------------------------------------------------
+```
+
+```{r mcfaddens test, echo = FALSE, results = "hide", warning = FALSE, message = FALSE, error = FALSE}
+# Conducting the McFadden's test to decide on the better model. 
+library(pscl)
+pR2(a) # McFadden: 9.93e-04
+pR2(b) # McFadden: 0.017
+```
+
+      The anova shows that there is significant difference among both models
+      (p-value < 0.001).
+      
+      Model A - unadjusted model- McFadden's test : 9.93e-04
+      Model B: - fully adjusted - McFadden's test : 0.017
+      
+      Neither of the models are good. 
+      Both are very close to zero indicating that both are really 
+      bad models, but model b (the fully adjusted model is better 
+      than the base model)
+
+#### Conclusion from the Logistic Regression Analysis
+
+As expected, and indicated from the exploratory data analysis ethnic density is not associated with death by suicide.
+
+******
+
+
+### The association of Ethnic Density and Suicide in Different Ethnic Groups
+
+Is there any association of ethnic density and suicide among different ethnic groups?
+
+The same process above (unadjusted and fully adjusted analyses) was repeated for each of the ethnic groups. The following forest plot brings together the odds ratios from the analyses. See the respective .Rmd file for code. 
+
+*******
+```{r edvssuicide_black, echo = FALSE, results = "hide", warning = FALSE, results = FALSE, error = FALSE}
+dataset.black <- 
+  edclean %>% 
+  filter(ethnicity=="Black") %>% 
+  dplyr::select(Suicide, Gender_Cleaned, ageatdiagnosis, Marital_Cleaned, 
+         imd_score, LSOA_4boroughs, ethnicdensityscore) %>%
+  mutate(Gender_Cleaned=
+           factor(Gender_Cleaned, 
+                  levels=c("Male",
+                           "Female")),
+         Marital_Cleaned=
+           factor(Marital_Cleaned,
+                  levels=c("Unknown",
+                           "Single",
+                           "Married / Cohabiting",
+                           "Divorced / Separated / Widowed")),
+         LSOA_4boroughs=
+           factor(LSOA_4boroughs,
+                  levels=c("OTHER",
+                           "CROYDON",
+                           "SOUTHWARK",
+                           "LEWSIHAM",
+                           "LAMBETH")))
+save(dataset.black, file = "dataset.black.Rdata")
+
+logistic_model_full_black <- 
+  tidy(
+    glm(Suicide ~ ethnicdensityscore + Gender_Cleaned + ageatdiagnosis + 
+                        Marital_Cleaned + imd_score + LSOA_4boroughs,
+                      family="binomial",
+                      data=dataset.black))
+
+logistic_model_full_black$OR <- 
+  round(exp(logistic_model_full_black$estimate), digits = 2)
+
+logistic_model_full_black$HIGH <- 
+  round(
+    exp(logistic_model_full_black$estimate + 1.96*logistic_model_full_black$std.error),
+    digits = 2)
+
+logistic_model_full_black$LOW <- 
+  round(
+    exp(logistic_model_full_black$estimate - 1.96*logistic_model_full_black$std.error),
+    digits = 2)
+
+
+logistic_model_full_black$p.value <- 
+  round(
+    logistic_model_full_black$p.value,
+    digits = 3)
+
+## summary of base model
+#logistic_model_full_black[c("term","OR", "LOW", "HIGH", "p.value")]
+```
+
+
+```{r edvsuicide_otherblack, echo = FALSE, results = "hide", warning = FALSE, results = FALSE, error = FALSE}
+dataset.otherblack <- 
+  edclean %>% 
+  filter(ethnicity=="Other Black") %>% 
+  dplyr::select(Suicide, Gender_Cleaned, ageatdiagnosis, Marital_Cleaned, 
+         imd_score, LSOA_4boroughs, ethnicdensityscore) %>%
+  mutate(Gender_Cleaned=
+           factor(Gender_Cleaned, 
+                  levels=c("Male",
+                           "Female")),
+         Marital_Cleaned=
+           factor(Marital_Cleaned,
+                  levels=c("Unknown",
+                           "Single",
+                           "Married / Cohabiting",
+                           "Divorced / Separated / Widowed")),
+         LSOA_4boroughs=
+           factor(LSOA_4boroughs,
+                  levels=c("OTHER",
+                           "CROYDON",
+                           "SOUTHWARK",
+                           "LEWSIHAM",
+                           "LAMBETH")))
+save(dataset.otherblack, file = "dataset.otherblack.Rdata")
+
+logistic_model_full_other_black <- 
+  tidy(
+    glm(Suicide ~ ethnicdensityscore + Gender_Cleaned + ageatdiagnosis + 
+                        Marital_Cleaned + imd_score + LSOA_4boroughs,
+                      family="binomial",
+                      data=dataset.otherblack))
+
+logistic_model_full_other_black$OR <- 
+  round(exp(logistic_model_full_other_black$estimate), digits = 2)
+
+logistic_model_full_other_black$HIGH <- 
+  round(
+    exp(logistic_model_full_other_black$estimate + 1.96*logistic_model_full_other_black$std.error),
+    digits = 2)
+
+logistic_model_full_other_black$LOW <- 
+  round(
+    exp(logistic_model_full_other_black$estimate - 1.96*logistic_model_full_other_black$std.error),
+    digits = 2)
+
+
+logistic_model_full_other_black$p.value <- 
+  round(
+    logistic_model_full_other_black$p.value,
+    digits = 3)
+
+## summary of base model
+#logistic_model_full_other_black[c("term","OR", "LOW", "HIGH", "p.value")]
+```
+
+
+```{r edvsuicide_otherwhite, echo = FALSE, results = "hide", warning = FALSE, results = FALSE, error = FALSE}
+dataset.otherwhite <- 
+  edclean %>% 
+  filter(ethnicity=="Other White") %>% 
+  dplyr::select(Suicide, Gender_Cleaned, ageatdiagnosis, Marital_Cleaned, 
+         imd_score, LSOA_4boroughs, ethnicdensityscore) %>%
+  mutate(Gender_Cleaned=
+           factor(Gender_Cleaned, 
+                  levels=c("Male",
+                           "Female")),
+         Marital_Cleaned=
+           factor(Marital_Cleaned,
+                  levels=c("Unknown",
+                           "Single",
+                           "Married / Cohabiting",
+                           "Divorced / Separated / Widowed")),
+         LSOA_4boroughs=
+           factor(LSOA_4boroughs,
+                  levels=c("OTHER",
+                           "CROYDON",
+                           "SOUTHWARK",
+                           "LEWSIHAM",
+                           "LAMBETH")))
+save(dataset.otherwhite, file = "dataset.otherwhite.Rdata")
+
+logistic_model_full_other_white <- 
+  tidy(
+    glm(Suicide ~ ethnicdensityscore + Gender_Cleaned + ageatdiagnosis + 
+                        Marital_Cleaned + imd_score + LSOA_4boroughs,
+                      family="binomial",
+                      data=dataset.otherwhite))
+
+logistic_model_full_other_white$OR <- 
+  round(exp(logistic_model_full_other_white$estimate), digits = 2)
+
+logistic_model_full_other_white$HIGH <- 
+  round(
+    exp(logistic_model_full_other_white$estimate + 1.96*logistic_model_full_other_white$std.error),
+    digits = 2)
+
+logistic_model_full_other_white$LOW <- 
+  round(
+    exp(logistic_model_full_other_white$estimate - 1.96*logistic_model_full_other_white$std.error),
+    digits = 2)
+
+
+logistic_model_full_other_white$p.value <- 
+  round(
+    logistic_model_full_other_white$p.value,
+    digits = 3)
+
+## summary of base model
+#logistic_model_full_other_white[c("term","OR", "LOW", "HIGH", "p.value")]
+```
+
+
+```{r edvsuicide_asian, echo = FALSE, results = "hide", warning = FALSE, results = FALSE, error = FALSE}
+
+
+dataset.asian <- 
+  edclean %>% 
+  filter(ethnicity=="Asian") %>% 
+  dplyr::select(Suicide, Gender_Cleaned, ageatdiagnosis, Marital_Cleaned, 
+         imd_score, LSOA_4boroughs, ethnicdensityscore) %>%
+  mutate(Gender_Cleaned=
+           factor(Gender_Cleaned, 
+                  levels=c("Male",
+                           "Female")),
+         Marital_Cleaned=
+           factor(Marital_Cleaned,
+                  levels=c("Unknown",
+                           "Single",
+                           "Married / Cohabiting",
+                           "Divorced / Separated / Widowed")),
+         LSOA_4boroughs=
+           factor(LSOA_4boroughs,
+                  levels=c("OTHER",
+                           "CROYDON",
+                           "SOUTHWARK",
+                           "LEWSIHAM",
+                           "LAMBETH")))
+save(dataset.asian, file = "dataset.asian.Rdata")
+
+
+
+logistic_model_full_asian <- 
+  tidy(
+    glm(Suicide ~ ethnicdensityscore + Gender_Cleaned + ageatdiagnosis + 
+                        Marital_Cleaned + imd_score + LSOA_4boroughs,
+                      family="binomial",
+                      data=dataset.asian))
+
+logistic_model_full_asian$OR <- 
+  round(exp(logistic_model_full_asian$estimate), digits = 2)
+
+logistic_model_full_asian$HIGH <- 
+  round(
+    exp(logistic_model_full_asian$estimate + 1.96*logistic_model_full_asian$std.error),
+    digits = 2)
+
+logistic_model_full_asian$LOW <- 
+  round(
+    exp(logistic_model_full_asian$estimate - 1.96*logistic_model_full_asian$std.error),
+    digits = 2)
+
+
+logistic_model_full_asian$p.value <- 
+  round(
+    logistic_model_full_asian$p.value,
+    digits = 3)
+
+## summary of base model
+#logistic_model_full_asian[c("term","OR", "LOW", "HIGH", "p.value")]
+```
+
+
+```{r edvsuicide_caribbean, echo = FALSE, results = "hide", warning = FALSE, results = FALSE, error = FALSE}
+dataset.caribbean <- 
+  edclean %>% 
+  filter(ethnicity=="Caribbean") %>% 
+  dplyr::select(Suicide, Gender_Cleaned, ageatdiagnosis, Marital_Cleaned, 
+         imd_score, LSOA_4boroughs, ethnicdensityscore) %>%
+  mutate(Gender_Cleaned=
+           factor(Gender_Cleaned, 
+                  levels=c("Male",
+                           "Female")),
+         Marital_Cleaned=
+           factor(Marital_Cleaned,
+                  levels=c("Unknown",
+                           "Single",
+                           "Married / Cohabiting",
+                           "Divorced / Separated / Widowed")),
+         LSOA_4boroughs=
+           factor(LSOA_4boroughs,
+                  levels=c("OTHER",
+                           "CROYDON",
+                           "SOUTHWARK",
+                           "LEWSIHAM",
+                           "LAMBETH")))
+save(dataset.caribbean, file = "dataset.caribbean.Rdata")
+
+logistic_model_full_caribbean <- 
+  tidy(
+    glm(Suicide ~ ethnicdensityscore + Gender_Cleaned + ageatdiagnosis + 
+                        Marital_Cleaned + imd_score + LSOA_4boroughs,
+                      family="binomial",
+                      data=dataset.caribbean))
+
+logistic_model_full_caribbean$OR <- 
+  round(exp(logistic_model_full_caribbean$estimate), digits = 2)
+
+logistic_model_full_caribbean$HIGH <- 
+  round(
+    exp(logistic_model_full_caribbean$estimate + 1.96*logistic_model_full_caribbean$std.error),
+    digits = 2)
+
+logistic_model_full_caribbean$LOW <- 
+  round(
+    exp(logistic_model_full_caribbean$estimate - 1.96*logistic_model_full_caribbean$std.error),
+    digits = 2)
+
+
+logistic_model_full_caribbean$p.value <- 
+  round(
+    logistic_model_full_caribbean$p.value,
+    digits = 3)
+
+## summary of base model
+#logistic_model_full_caribbean[c("term","OR", "LOW", "HIGH", "p.value")]
+```
+
+
+```{r edvsuicide_mixed, echo = FALSE, results = "hide", warning = FALSE, results = FALSE, error = FALSE}
+dataset.mixed <- 
+  edclean %>% 
+  filter(ethnicity=="Mixed Race") %>% 
+  dplyr::select(Suicide, Gender_Cleaned, ageatdiagnosis, Marital_Cleaned, 
+         imd_score, LSOA_4boroughs, ethnicdensityscore) %>%
+  mutate(Gender_Cleaned=
+           factor(Gender_Cleaned, 
+                  levels=c("Male",
+                           "Female")),
+         Marital_Cleaned=
+           factor(Marital_Cleaned,
+                  levels=c("Unknown",
+                           "Single",
+                           "Married / Cohabiting",
+                           "Divorced / Separated / Widowed")),
+         LSOA_4boroughs=
+           factor(LSOA_4boroughs,
+                  levels=c("OTHER",
+                           "CROYDON",
+                           "SOUTHWARK",
+                           "LEWSIHAM",
+                           "LAMBETH")))
+save(dataset.mixed, file = "dataset.mixed.Rdata")
+
+logistic_model_full_mixed <- 
+  tidy(
+    glm(Suicide ~ ethnicdensityscore + Gender_Cleaned + ageatdiagnosis + 
+                        Marital_Cleaned + imd_score + LSOA_4boroughs,
+                      family="binomial",
+                      data=dataset.mixed))
+
+logistic_model_full_mixed$OR <- 
+  round(exp(logistic_model_full_mixed$estimate), digits = 2)
+
+logistic_model_full_mixed$HIGH <- 
+  round(
+    exp(logistic_model_full_mixed$estimate + 1.96*logistic_model_full_mixed$std.error),
+    digits = 2)
+
+logistic_model_full_mixed$LOW <- 
+  round(
+    exp(logistic_model_full_mixed$estimate - 1.96*logistic_model_full_mixed$std.error),
+    digits = 2)
+
+
+logistic_model_full_mixed$p.value <- 
+  round(
+    logistic_model_full_mixed$p.value,
+    digits = 3)
+
+## summary of base model
+#logistic_model_full_mixed[c("term","OR", "LOW", "HIGH", "p.value")]
+```
+
+  
+
+```{r forestplot_full,echo = FALSE, warning = FALSE, error = FALSE, message = FALSE}
+##forestplot
+
+library(forestplot)
+row_names <- c("Ethnic Groups",NA,"White", "Black", 
+               "Other Black", "Other White", 
+               "Asian", "Caribbean", 
+               "Mixed Race")
+
+betas <- c(NA,NA, 1.00, 1.05, 1.29, 1.05, 1.08, 1.00, 0.89)
+low <- c(NA, NA,0.99, 0.98, 0.90, 0.97, 1.01, 0.88, 0.42)
+high <- c(NA, NA,1.01, 1.11, 1.84, 1.14, 1.14, 1.14, 1.91)
+# plot
+forestplot(row_names,
+           betas,
+           low,
+           high,
+           zero = 1,
+           cex  = 2,
+           lineheight = "auto",
+           xlab = "Odds Ratio",
+           ci.vertices=TRUE,
+           new_page = TRUE,
+           title = "Odds Ratios 
+      Predicting Death by Suicide from Ethnic Density")
+```
+
+By ethnic groups as well, the ethnic density is not associated with death by suicide (apart from the Asian ethnic group).
+
+******
+
+### Predictive Modelling using a balanced dataset
+
+******
+
+To address the issue of unbalanced data and to assess how well the fully adjusted model can predict completed suicide, a generalised linear regression method was used to build a classification model using the R package `caret`. `SMOTE` is used to balance the data (http://search.r-project.org/library/performanceEstimation/html/smote.html). Model performance was assessed using area under the curve, sensitivity and specificity. 
+
+      __Notes on Model Building using the Caret package__
+      
+      The code below uses functions (`trainControl` and `train`) in 
+      the `caret` package to do the following:
+      
+            - The Model: Uses the full model (`as.factor(Suicide) ~
+            ethnicdensityscore + Gender_Cleaned + ageatdiagnosis + 
+            Marital_Cleaned + imd_score + LSOA_4boroughs`) to train 
+            (using the `glm` method) a balanced data (using the `smote         
+            function).
+            
+            - Balancing the dataset: using `SMOTE` as the sampling function, 
+            which generates a balanced dataset, which means using equal numebers
+            of cases and controls or over-sampling cases and under-sampling 
+            controls to achieve a comparable numbers in both groups. 
+            
+            - Training and Testing: The training is performed using caret's 
+            `trainControl` and `train` functions. It is set to use 5-fold
+            repeated cross validation on the balanced dataset. The function is 
+            set so that the training and testing process is repeated 100 times 
+            on a 5-fold balanced dataset (4 sets for training, 1 set for 
+            testing), with the performance of each model in predicting the 
+            hold-out (testing) set being measured using selected performance 
+            metric. 
+            
+            - The metric for assessing how well this model predicts completed
+            Suicide is the Receiving Operator Curve (ROC). 
+
+
+```{r prepping data for predictive modelling, echo = FALSE, warning = FALSE, message = FALSE, results = "hide"}
+#Recoding Suicide as Yes/No from 1/0
+dataset.white <-
+  dataset.white %>% 
+         mutate(Suicide = ifelse(Suicide == 0, 
+                                 "No", 
+                                 "Yes"))
+
+
+load("dataset.black.Rdata")
+dataset.black <- 
+  dataset.black %>%
+         mutate(Suicide = ifelse(Suicide == 0, 
+                                 "No", 
+                                 "Yes")) 
+
+load("dataset.asian.Rdata")
+dataset.asian <- 
+  dataset.asian %>%
+         mutate(Suicide = ifelse(Suicide == 0, 
+                                 "No", 
+                                 "Yes")) 
+
+load("dataset.caribbean.Rdata")
+dim(dataset.caribbean)
+dataset.caribbean <- 
+  dataset.caribbean %>%
+         mutate(Suicide = ifelse(Suicide == 0, 
+                                 "No", 
+                                 "Yes")) 
+
+load("dataset.mixed.Rdata")
+dataset.mixed <- 
+  dataset.mixed %>%
+         mutate(Suicide = ifelse(Suicide == 0, 
+                                 "No", 
+                                 "Yes")) 
+
+load("dataset.otherblack.Rdata")
+dim(dataset.otherblack)
+dataset.otherblack <- 
+  dataset.otherblack %>%
+         mutate(Suicide = ifelse(Suicide == 0, 
+                                 "No", 
+                                 "Yes")) 
+
+load("dataset.otherwhite.Rdata")
+dataset.otherwhite <- 
+  dataset.otherwhite %>%
+         mutate(Suicide = ifelse(Suicide == 0, 
+                                 "No", 
+                                 "Yes")) 
+
+
+
+# to set seed to anchor the same starting point in the data
+set.seed(724)
+library(DMwR) # required to access SMOTE - to balance data
+# ßspeed up the analysis 
+library(doMC)
+registerDoMC(cores = 4)
+
+
+# Training parameters
+#   small numbers in Suicide == YES class so not splitting into train and test
+#   resampling approach used instead
+
+#   trainControl: set training sampling and tuning parameters
+#   k-fold cv: 5 fold, repeated 20 times = 100 sample sets
+#   data not balanced so using SMOTE
+control_smote_2class <- trainControl(method = "repeatedcv", 
+                     number = 5, 
+                     repeats = 20, 
+                     sampling = "smote",
+                     summaryFunction = twoClassSummary,
+                     returnResamp="all",
+                     classProbs = TRUE,
+                     savePredictions = "all",
+                     returnData=TRUE)
+```
+
+
+```{r buildingthemodel, error =  FALSE, warning=FALSE, message = FALSE, echo = FALSE, results = "hide"}
+# builiding the model: glm, binomial, select on best metric using "ROC" curve
+mod_fit_smote_suicide <- 
+  train(as.factor(Suicide) ~ ethnicdensityscore + 
+          Gender_Cleaned + ageatdiagnosis + Marital_Cleaned + 
+          imd_score + LSOA_4boroughs, 
+        data = dataset.white, 
+        method = "glm",
+        family="binomial", 
+        trControl = control_smote_2class, 
+        #tuneLength = 5,
+        metric = "ROC")
+
+mod_fit_smote_suicide_black <- train(as.factor(Suicide) ~ ethnicdensityscore + 
+          Gender_Cleaned + ageatdiagnosis + Marital_Cleaned + 
+          imd_score + LSOA_4boroughs, 
+        data = dataset.black, 
+        method = "glm",
+        family="binomial", 
+        trControl = control_smote_2class, 
+        #tuneLength = 5,
+        metric = "ROC")
+
+
+mod_fit_smote_suicide_asian <- train(as.factor(Suicide) ~ ethnicdensityscore + 
+          Gender_Cleaned + ageatdiagnosis + Marital_Cleaned + 
+          imd_score + LSOA_4boroughs, 
+        data = dataset.asian, 
+        method = "glm",
+        family="binomial", 
+        trControl = control_smote_2class, 
+        #tuneLength = 5,
+        metric = "ROC")
+
+
+
+mod_fit_smote_suicide_caribbean <- 
+  train(as.factor(Suicide) ~ ethnicdensityscore + 
+          Gender_Cleaned + ageatdiagnosis + Marital_Cleaned + 
+          imd_score + LSOA_4boroughs, 
+        data = dataset.caribbean, 
+        method = "glm",
+        family="binomial", 
+        trControl = control_smote_2class, 
+        #tuneLength = 5,
+        metric = "ROC")
+
+
+mod_fit_smote_suicide_mixed <- 
+  train(as.factor(Suicide) ~ ethnicdensityscore + 
+          Gender_Cleaned + ageatdiagnosis + Marital_Cleaned + 
+          imd_score + LSOA_4boroughs, 
+        data = dataset.mixed, 
+        method = "glm",
+        family="binomial", 
+        trControl = control_smote_2class, 
+        #tuneLength = 5,
+        metric = "ROC")
+
+
+
+mod_fit_smote_suicide_otherblack <- 
+  train(as.factor(Suicide) ~ ethnicdensityscore + 
+          Gender_Cleaned + ageatdiagnosis + Marital_Cleaned + 
+          imd_score + LSOA_4boroughs, 
+        data = dataset.otherblack, 
+        method = "glm",
+        family="binomial", 
+        trControl = control_smote_2class, 
+        #tuneLength = 5,
+        metric = "ROC")
+
+
+
+mod_fit_smote_suicide_otherwhite <- 
+  train(as.factor(Suicide) ~ ethnicdensityscore + 
+          Gender_Cleaned + ageatdiagnosis + Marital_Cleaned + 
+          imd_score + LSOA_4boroughs, 
+        data = dataset.otherwhite, 
+        method = "glm",
+        family="binomial", 
+        trControl = control_smote_2class, 
+        #tuneLength = 5,
+        metric = "ROC")
+
+
+
+
+
+# summary(mod_fit_smote_suicide)
+# summary(mod_fit_smote_suicide_black)
+# summary(mod_fit_smote_suicide_asian)
+# summary(mod_fit_smote_suicide_caribbean)
+# summary(mod_fit_smote_suicide_mixed)
+# summary(mod_fit_smote_suicide_otherblack)
+# summary(mod_fit_smote_suicide_otherwhite)
+```
+
+******
+
+#### Results from predictive modelling
+
+```{r auc_roc, echo = FALSE, results="hide", warning=FALSE, message = FALSE, error=FALSE}
+
+# AUC and ROC Curves
+library(pROC)
+pred <- predict(mod_fit_smote_suicide, dataset.white, type="prob")
+rocCurve <- roc(response = dataset.white$Suicide,
+                predictor = pred[,"Yes"])
+
+pred_black <- predict(mod_fit_smote_suicide_black, dataset.black, type="prob")
+rocCurve_black <- roc(response = dataset.black$Suicide,
+                predictor = pred_black[,"Yes"])
+
+
+pred_asian <- predict(mod_fit_smote_suicide_asian, dataset.asian, type="prob")
+rocCurve_asian <- roc(response = dataset.asian$Suicide,
+                predictor = pred_asian[,"Yes"])
+
+
+pred_caribbean <- predict(mod_fit_smote_suicide_caribbean, 
+                          dataset.caribbean, 
+                          type="prob")
+rocCurve_caribbean <- roc(response = dataset.caribbean$Suicide,
+                predictor = pred_caribbean[,"Yes"])
+
+
+
+pred_mixed <- predict(mod_fit_smote_suicide_mixed, 
+                          dataset.mixed, 
+                          type="prob")
+rocCurve_mixed <- roc(response = dataset.mixed$Suicide, predictor = pred_mixed[,"Yes"])
+
+
+pred_otherblack <- predict(mod_fit_smote_suicide_otherblack, dataset.otherblack, type="prob")
+rocCurve_otherblack <- roc(response = dataset.otherblack$Suicide,
+                predictor = pred_otherblack[,"Yes"])
+
+
+
+pred_otherwhite <- predict(mod_fit_smote_suicide_otherwhite, dataset.otherwhite, type="prob")
+rocCurve_otherwhite<- roc(response = dataset.otherwhite$Suicide,
+                predictor = pred_otherwhite[,"Yes"])
+
+# http://gim.unmc.edu/dxtests/roc3.htm
+# ROC curve area assessment
+# .90-1 = excellent (A)
+# .80-.90 = good (B)
+# .70-.80 = fair (C)
+# .60-.70 = poor (D)
+# .50-.60 = fail (F)
+
+# auc
+pROC:::auc(rocCurve_otherblack) # 0.842
+ci(rocCurve_otherblack) # 95% CI: 0.7719-0.912 (DeLong)
+
+pROC:::auc(rocCurve_asian) # 0.7953
+ci(rocCurve_asian) # 95% CI: 0.7155-0.8752 (DeLong)
+
+pROC:::auc(rocCurve_black) # 0.7522
+ci(rocCurve_black) # 95% CI: 0.6315-0.8729 (DeLong)
+
+pROC:::auc(rocCurve_otherwhite) # 0.7345
+ci(rocCurve_otherwhite) # 95% CI: 0.6376-0.8314 (DeLong)
+
+pROC:::auc(rocCurve_mixed) # 0.6767
+ci(rocCurve_mixed) # 95% CI: 0.5414-0.812 (DeLong)
+
+pROC:::auc(rocCurve_caribbean) # 0.6691
+ci(rocCurve_caribbean) # 95% CI: 0.5745-0.7637 (DeLong)
+
+pROC:::auc(rocCurve) # 0.6212
+ci(rocCurve) # 95% CI: 0.5812-0.6613 (DeLong)
+
+
+
+
+library(ROCR)
+plot(rocCurve, legacy.axes=TRUE)
+plot(rocCurve_black, add = TRUE, col = "orange")
+plot(rocCurve_asian, add = TRUE, col = "red")
+plot(rocCurve_caribbean, add = TRUE, col = "pink")
+plot(rocCurve_mixed, add = TRUE, col = "blue")
+plot(rocCurve_otherblack, add = TRUE, col = "light blue")
+plot(rocCurve_otherwhite, add = TRUE, col = "yellow")
+```
+
+
+```{r confusionmatrix, echo = FALSE, results = "hide", warning=FALSE, message = FALSE, error=FALSE}
+#Building a confustion matrix
+pred <- predict(mod_fit_smote_suicide)
+white_matrix <- confusionMatrix(pred, reference=dataset.white$Suicide, positive = "Yes")
+white_matrix$byClass[c("Sensitivity", "Specificity", "Pos Pred Value")]
+
+
+
+pred_black <- predict(mod_fit_smote_suicide_black)
+black_matrix <- confusionMatrix(pred_black, reference=dataset.black$Suicide, positive = "Yes")
+black_matrix$byClass[c("Sensitivity", "Specificity", "Pos Pred Value")]
+
+
+
+pred_asian <- predict(mod_fit_smote_suicide_asian)
+asian_matrix <- confusionMatrix(pred_asian, reference=dataset.asian$Suicide, positive = "Yes")
+asian_matrix$byClass[c("Sensitivity", "Specificity", "Pos Pred Value")]
+
+
+pred_caribbean <- predict(mod_fit_smote_suicide_caribbean)
+caribbean_matrix <- confusionMatrix(pred_caribbean, 
+                reference=dataset.caribbean$Suicide, 
+                positive = "Yes")
+caribbean_matrix$byClass[c("Sensitivity", "Specificity", "Pos Pred Value")]
+
+
+
+pred_mixed <- predict(mod_fit_smote_suicide_mixed)
+mixed_matrix <- confusionMatrix(pred_mixed, reference=dataset.mixed$Suicide, positive = "Yes")
+mixed_matrix$byClass[c("Sensitivity", "Specificity", "Pos Pred Value")]
+
+
+
+pred_otherblack <- predict(mod_fit_smote_suicide_otherblack)
+otherblack_matrix <- confusionMatrix(pred_otherblack, 
+                reference=dataset.otherblack$Suicide, 
+                positive = "Yes")
+otherblack_matrix$byClass[c("Sensitivity", "Specificity", "Pos Pred Value")]
+
+
+pred_otherwhite <- predict(mod_fit_smote_suicide_otherwhite)
+otherwhite_matrix   <- confusionMatrix(pred_otherwhite, 
+                reference=dataset.otherwhite$Suicide, 
+                positive = "Yes")
+
+
+otherwhite_matrix$byClass[c("Sensitivity", "Specificity", "Pos Pred Value")]
+```
+
+
+
+|Ethnic Group  | Sensitivity |Specificity  | Positive Predictive Value|
+|:------------:|:-----------:|:-----------:| :-----------------------:| 
+|Other Black (light blue line) | 0.89 |   0.739   | 0.009  |
+|Other White (yellow) | 0.55 |   0.72    | 0.009  |
+|Mixed Race (blue line) | 0.75  |   0.64   |  0.019 |
+|Caribbean (pink line)   | 0.46 |   0.65    |  0.0069|
+|Asian (red line)       | 0.54|   0.74     |  0.0099|
+|Black (orange line)      | 0.75  |   0.70   | 0.019  |
+|White (black line)      | 0.37 |   0.76    |  0.01  |
+
+
+
+      Definitions:
+        
+      Sensitivity: measures the proportion of positives that are correctly
+      identified (i.e. of all the individuals who have died by suicide how many
+      have been predicted correctly)
+        
+      Specificity: measures the proportion of negatives that are correctly
+      identified (i.e. of all the individuals who have not died by suicide how
+      many have been correctly predicted to have not died by suicide) 
+        
+      Positive Predictive Value: measures the proportion of predicted positives
+      that are corrected identified (i.e. of all the predicted deaths by
+      suicide, how many are correct)
+
+****** 
+
+#### Conclusion from Predictive modelling 
+
+The table shows results from predictive analysis of a balanced dataset. While the sensitivity and specificity are good for some ethnic groups, the positive predictive values are poor across all ethnic groups, this means that suicides over-predicted and that the model cannot predict suicides accurately. 
