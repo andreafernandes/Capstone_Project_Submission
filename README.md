@@ -9,9 +9,16 @@ Andrea Fernandes andrea.c.fernandes1@gmail.com
 
 ## Order and Description of HTML and Rmd files 
 
-These are in order: Introduction, data cleaning, data exploration, analysis (in two parts)
+Please read this file before accessing the folders and files above. 
+
+The folders (which start with numbers to ensure they show in order) contain all the files and code I needed to generate the html files (which are contained in the folders and I have also copied them outside of the folders for ease of view or for those of you who do not want to see any code!).
+
+Please go through the html files in this order (do not feel obliged to go through these in this order and skip ones you won't be interested in): Introduction, data cleaning, data exploration, analysis (in two parts)
 
 ******
+
+Brief description of each file:
+
 
 |.html File Name        | Brief Description |   
 |:---------------------|:------------------|
